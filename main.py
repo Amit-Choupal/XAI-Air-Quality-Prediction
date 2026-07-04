@@ -117,15 +117,10 @@ area = [
 ]
 
 for month in range(1,13):
-
     month_str = f"{month:02d}"
-
     days = calendar.monthrange(year, month)[1]
-
     day_list = [f"{d:02d}" for d in range(1, days+1)]
-
     time_list = [f"{h:02d}:00" for h in range(24)]
-
     filename = f"PBL_{year}_{month_str}.nc"
 
     print("Downloading", filename)
@@ -133,27 +128,16 @@ for month in range(1,13):
     client.retrieve(
 
         "reanalysis-era5-single-levels",
-
         {
-
             "product_type":"reanalysis",
-
             "variable":"boundary_layer_height",
-
             "year":str(year),
-
             "month":month_str,
-
             "day":day_list,
-
             "time":time_list,
-
             "data_format":"netcdf",
-
             "download_format":"unarchived",
-
             "area":area
-
         },
 
         filename
@@ -165,9 +149,7 @@ import pandas as pd
 import glob
 
 files = sorted(glob.glob("PBL_2025_*.nc"))
-
 print(files)
-
 pbl_list = []
 
 for file in files:
@@ -181,13 +163,9 @@ for file in files:
     )
 
     df = pbl.to_dataframe().reset_index()
-
     pbl_list.append(df)
 
 pbl_df = pd.concat(pbl_list, ignore_index=True)
-
-
-
 
 pbl_df = pbl_df.rename(columns={
     "valid_time": "DateTime",
@@ -367,7 +345,7 @@ shap_values = explainer.shap_values(X_test_scaled)
 #Summary Plot
 shap.summary_plot(
     shap_values,
-    X_sample,
+     X_test_scaled,
     feature_names=features
 )
 plt.savefig("SHAP_Summary.png", dpi=300, bbox_inches="tight")
@@ -375,7 +353,7 @@ plt.savefig("SHAP_Summary.png", dpi=300, bbox_inches="tight")
 #Bar Plot
 shap.summary_plot(
     shap_values,
-    X_sample,
+     X_test_scaled,
     feature_names=features,
     plot_type="bar"
 )
@@ -385,7 +363,7 @@ plt.savefig("SHAP_Summary_Bar.png", dpi=300, bbox_inches="tight")
 shap.dependence_plot(
     "PBL Height (m)",
     shap_values,
-    X_sample,
+     X_test_scaled,
     feature_names=features
 )
 plt.savefig("SHAP_PBL_Dependence.png", dpi=300, bbox_inches="tight")
@@ -393,7 +371,7 @@ plt.savefig("SHAP_PBL_Dependence.png", dpi=300, bbox_inches="tight")
 shap.dependence_plot(
     "Temperature (°C)",
     shap_values,
-    X_sample,
+     X_test_scaled,
     feature_names=features
 )
 plt.savefig("SHAP_Temperature_Dependence.png", dpi=300, bbox_inches="tight")
@@ -404,56 +382,45 @@ def pm25_category(pm25):
 
     if pm25 <= 12:
         return "Good"
-
     elif pm25 <= 35.4:
         return "Moderate"
-
     elif pm25 <= 55.4:
         return "Unhealthy for Sensitive Groups"
-
     elif pm25 <= 150.4:
         return "Unhealthy"
-
     elif pm25 <= 250.4:
         return "Very Unhealthy"
-
     else:
         return "Hazardous"
+
 
 # Explanation Dictionary
 
 feature_text = {
-
 "Temperature (°C)":{
 "high":"The observed temperature contributed to a higher PM2.5 prediction.",
 "low":"The observed temperature contributed to a lower PM2.5 prediction."
 },
-
 "Humidity (%)":{
 "high":"High humidity favored particle growth and haze formation.",
 "low":"Low humidity reduced particle growth."
 },
-
 "Pressure (hPa)":{
 "high":"Higher pressure created more stable atmospheric conditions that can trap pollutants.",
 "low":"Lower pressure generally supports better atmospheric mixing."
 },
-
 "Rainfall (mm)":{
 "high":"Rainfall removed pollutants from the atmosphere through wet deposition.",
 "low":"Little or no rainfall allowed pollutants to remain suspended."
 },
-
 "Wind Speed (km/h)":{
 "high":"Higher wind speed dispersed pollutants efficiently.",
 "low":"Weak winds limited pollutant dispersion."
 },
-
 "PBL Height (m)":{
 "high":"A higher Planetary Boundary Layer promoted vertical mixing and dilution of pollutants.",
 "low":"A shallow Planetary Boundary Layer trapped pollutants close to the surface."
 }
-
 }
 
 # XAI Function
@@ -463,58 +430,40 @@ def explain_prediction(sample):
     prediction = model.predict(
         X_test_scaled[sample].reshape(1,-1)
     )[0]
-
     category = pm25_category(prediction)
-
     explanation = pd.DataFrame({
-
         "Feature":features,
-
         "Value":X_test.iloc[sample].values,
-
         "SHAP":shap_values[sample]
-
     })
 
     explanation["ABS"] = explanation["SHAP"].abs()
-
     explanation = explanation.sort_values(
         "ABS",
         ascending=False
     )
 
     print("="*65)
-
     print(f"Date & Time     : {datetime_test.iloc[sample]}")
     print(f"Predicted PM2.5 : {prediction:.2f} µg/m³")
     print(f"Air Quality     : {category}")
-
     print("="*65)
 
     print("\nTop contributing factors:\n")
 
     for _,row in explanation.head(4).iterrows():
-
         feature = row["Feature"]
-
         value = row["Value"]
-
         shap = row["SHAP"]
-
         direction = "high" if shap>0 else "low"
-
-        print(f"✓ {feature}: {value:.2f}")
-
+        print(f"{feature}: {value:.2f}")
         print(" ",feature_text[feature][direction])
 
         print()
-
     print("="*65)
-
     print("Overall Explanation:\n")
 
     positive = explanation[explanation.SHAP>0]
-
     negative = explanation[explanation.SHAP<0]
 
     if prediction>100:
